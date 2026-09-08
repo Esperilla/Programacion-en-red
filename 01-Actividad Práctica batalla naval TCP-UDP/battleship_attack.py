@@ -5,9 +5,9 @@ PORT = 5050
 
 
 def atacar(host=HOST, port=PORT):
-    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as cliente:
-        direccion_defensor = (host, port)
-        print(f"Atacante listo para enviar ataques a {host}:{port}")
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as cliente:
+        cliente.connect((host, port))
+        print(f"Conectado al defensor en {host}:{port}")
         print("Escribe una coordenada o 'salir' para terminar.")
 
         while True:
@@ -17,8 +17,11 @@ def atacar(host=HOST, port=PORT):
             if not coordenada:
                 continue
 
-            cliente.sendto(coordenada.upper().encode("utf-8"), direccion_defensor)
-            datos, _ = cliente.recvfrom(1024)
+            cliente.sendall(coordenada.upper().encode("utf-8"))
+            datos = cliente.recv(1024)
+            if not datos:
+                print("El defensor cerro la conexion.")
+                break
 
             respuesta = datos.decode("utf-8")
             print(f"Respuesta del defensor: {respuesta}")
