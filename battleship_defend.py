@@ -2,7 +2,7 @@ import socket
 
 HOST = "0.0.0.0"
 PORT = 5050
-.
+
 POSICIONES_BARCOS = {"A1", "B2", "C3"}
 
 
