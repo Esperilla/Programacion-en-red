@@ -1,0 +1,539 @@
+<title>Simulador Primer Parcial · Sockets</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap">
+<style>
+/* Layout: una columna de lectura con barra de puntaje fija arriba; cada sección es un "segmento" de la conversación cliente-servidor */
+:root {
+  --bg: #f3f5f7;
+  --surface: #ffffff;
+  --fg: #16212b;
+  --muted: #5b6b78;
+  --line: #d6dde3;
+  --accent: #0b7a75;
+  --accent-soft: #dff1ef;
+  --ok: #1d7a3a;
+  --ok-soft: #e1f3e6;
+  --bad: #b3261e;
+  --bad-soft: #fbe7e5;
+  --warn: #8a5a00;
+  --warn-soft: #fbf0d9;
+  --code-bg: #eef2f5;
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f161c; --surface: #172129; --fg: #e3eaef; --muted: #93a3b0; --line: #2a3843;
+    --accent: #3fc1b8; --accent-soft: #143633; --ok: #5fcf83; --ok-soft: #15301e;
+    --bad: #f2867d; --bad-soft: #3a1c1a; --warn: #e8b85a; --warn-soft: #352a12; --code-bg: #0d1419;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f161c; --surface: #172129; --fg: #e3eaef; --muted: #93a3b0; --line: #2a3843;
+  --accent: #3fc1b8; --accent-soft: #143633; --ok: #5fcf83; --ok-soft: #15301e;
+  --bad: #f2867d; --bad-soft: #3a1c1a; --warn: #e8b85a; --warn-soft: #352a12; --code-bg: #0d1419;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 16px; line-height: 1.55; }
+.wrap { max-width: 820px; margin: 0 auto; padding-inline: 16px; padding-block: 0 64px; }
+
+/* barra de puntaje */
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); }
+.bar-in { max-width: 820px; margin: 0 auto; padding: 10px 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+.score { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 14px; display: flex; gap: 16px; flex-wrap: wrap; }
+.score b { color: var(--accent); font-weight: 600; }
+.meter { flex: 1 1 140px; height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; min-width: 100px; }
+.meter i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+nav.jump { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
+nav.jump a { font-family: var(--mono); font-size: 12px; color: var(--muted); text-decoration: none; border: 1px solid var(--line); padding: 2px 8px; border-radius: 4px; }
+nav.jump a:hover, nav.jump a:focus-visible { color: var(--accent); border-color: var(--accent); }
+nav.jump a.done { color: var(--accent); background: var(--accent-soft); border-color: transparent; }
+
+header.top { padding-block: 36px 20px; }
+.eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+h1 { font-family: var(--display); font-weight: 800; font-size: clamp(30px, 6vw, 46px); line-height: 1.05; margin: 8px 0 12px; text-wrap: balance; letter-spacing: -.01em; }
+h1 .handshake { color: var(--accent); }
+.lede { color: var(--muted); max-width: 62ch; margin: 0; }
+.handshake-line { font-family: var(--mono); font-size: 13px; color: var(--muted); margin-top: 16px; display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+.handshake-line span { border: 1px solid var(--line); padding: 1px 8px; border-radius: 4px; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+
+button { font: inherit; cursor: pointer; }
+.btn { font-family: var(--body); font-size: 14px; font-weight: 500; padding: 8px 14px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.btn:focus-visible, .opt:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.confirm { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 14px; color: var(--bad); }
+
+section.sec { margin-top: 44px; scroll-margin-top: 110px; }
+.sec-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; border-bottom: 2px solid var(--fg); padding-bottom: 6px; margin-bottom: 18px; }
+.sec-head .tag { font-family: var(--mono); font-size: 13px; color: var(--surface); background: var(--fg); padding: 1px 8px; border-radius: 3px; }
+h2 { font-family: var(--display); font-weight: 600; font-size: 24px; margin: 0; }
+.sec-head .pts { margin-left: auto; font-family: var(--mono); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.hint { color: var(--muted); font-size: 14px; margin: -8px 0 16px; }
+
+.q { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+.q-title { display: flex; gap: 10px; margin: 0 0 12px; }
+.q-id { font-family: var(--mono); font-size: 13px; color: var(--accent); font-weight: 600; flex: none; padding-top: 2px; }
+.q-text { min-width: 0; }
+.opts { display: grid; gap: 6px; }
+.opt { text-align: left; display: flex; gap: 10px; align-items: flex-start; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); }
+.opt:hover:not([disabled]) { border-color: var(--accent); }
+.opt .l { font-family: var(--mono); font-weight: 600; color: var(--muted); flex: none; }
+.opt[disabled] { cursor: default; }
+.opt.right { background: var(--ok-soft); border-color: var(--ok); }
+.opt.right .l { color: var(--ok); }
+.opt.wrong { background: var(--bad-soft); border-color: var(--bad); }
+.opt.wrong .l { color: var(--bad); }
+.opt.dim { opacity: .6; }
+.vf { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 320px; }
+.fb { margin-top: 10px; font-size: 14px; padding: 8px 12px; border-radius: 6px; border-left: 3px solid; }
+.fb.ok { background: var(--ok-soft); border-color: var(--ok); }
+.fb.bad { background: var(--bad-soft); border-color: var(--bad); }
+.fb.model { background: var(--accent-soft); border-color: var(--accent); }
+.fb strong { font-weight: 600; }
+
+code { font-family: var(--mono); font-size: .9em; background: var(--code-bg); padding: 1px 5px; border-radius: 3px; }
+pre { font-family: var(--mono); font-size: 13.5px; line-height: 1.5; background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; margin: 10px 0 12px; overflow-x: auto; }
+pre code { background: none; padding: 0; }
+pre .flag { color: var(--bad); }
+
+textarea { width: 100%; min-height: 84px; resize: vertical; font-family: var(--body); font-size: 15px; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; }
+.self { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; font-size: 14px; }
+.self .btn { padding: 5px 10px; font-size: 13px; }
+.self .btn.on-1 { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
+.self .btn.on-05 { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); }
+.self .btn.on-0 { background: var(--bad-soft); border-color: var(--bad); color: var(--bad); }
+.row-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
+/* relacionar columnas */
+.match { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 16px; }
+.match-calls { display: grid; gap: 8px; }
+.mrow { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+.mrow code { flex: 1; background: none; padding: 0; }
+.mrow.right { border-color: var(--ok); background: var(--ok-soft); }
+.mrow.wrong { border-color: var(--bad); background: var(--bad-soft); }
+.mrow .fix { font-family: var(--mono); font-size: 12px; color: var(--bad); }
+select { font-family: var(--mono); font-size: 14px; padding: 4px 6px; border-radius: 4px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); }
+.match-desc { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 14.5px; }
+.match-desc li { display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px dashed var(--line); }
+.match-desc .l { font-family: var(--mono); font-weight: 600; color: var(--accent); flex: none; }
+
+.check { display: flex; gap: 8px; align-items: center; font-size: 14px; margin-top: 10px; }
+.check input { width: 18px; height: 18px; accent-color: var(--accent); }
+
+.result { margin-top: 48px; background: var(--surface); border: 2px solid var(--fg); border-radius: 10px; padding: 20px; }
+.result h2 { margin-bottom: 10px; }
+.big { font-family: var(--display); font-weight: 800; font-size: 54px; line-height: 1; color: var(--accent); font-variant-numeric: tabular-nums; }
+.breakdown { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 14px; font-variant-numeric: tabular-nums; }
+.breakdown td, .breakdown th { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); }
+.breakdown th { font-family: var(--mono); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 500; }
+.breakdown td:last-child, .breakdown th:last-child { text-align: right; }
+.tbl-wrap { overflow-x: auto; }
+
+@media (max-width: 600px) {
+  .match { grid-template-columns: minmax(0, 1fr); }
+  .score { gap: 10px; font-size: 13px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
+html { scroll-behavior: smooth; }
+</style>
+
+<div class="bar">
+  <div class="bar-in">
+    <div class="score">
+      <span>Puntos <b id="sPts">0</b>/<span id="sMax">41</span></span>
+      <span>Contestadas <b id="sAns">0</b>/<span id="sTot">41</span></span>
+      <span>Calificación <b id="sGrade">0.0</b></span>
+    </div>
+    <div class="meter" aria-hidden="true"><i id="meter"></i></div>
+    <nav class="jump" id="jump" aria-label="Secciones"></nav>
+  </div>
+</div>
+
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow">Programación en Red · Unidad I y II</div>
+    <h1>Primer parcial: <span class="handshake">sockets</span>, en modo práctica</h1>
+    <p class="lede">Las mismas preguntas de la segunda parte del fascículo de repaso. Opción múltiple, verdadero/falso y relacionar columnas se califican solas. En respuesta corta y lectura de código escribes tu respuesta, comparas con la respuesta modelo y te autoevalúas.</p>
+    <div class="handshake-line"><span>SYN</span>→<span>SYN-ACK</span>→<span>ACK</span> listo para empezar</div>
+    <div class="actions">
+      <button class="btn" id="resetBtn" type="button">Reiniciar examen</button>
+      <div class="confirm" id="confirmBox" hidden>
+        ¿Borrar todas tus respuestas?
+        <button class="btn" id="resetYes" type="button">Sí, borrar</button>
+        <button class="btn" id="resetNo" type="button">Cancelar</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="exam"></main>
+
+  <section class="result" id="resultado">
+    <h2>Resultado</h2>
+    <div class="big" id="rGrade">0.0</div>
+    <div class="hint" style="margin:6px 0 0">sobre 10 · <span id="rPts">0</span> de 41 puntos · <span id="rPend">41</span> preguntas sin contestar o sin autoevaluar</div>
+    <div class="tbl-wrap">
+      <table class="breakdown">
+        <thead><tr><th>Sección</th><th>Tipo</th><th>Puntos</th></tr></thead>
+        <tbody id="rBody"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<script>
+const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+// `texto` -> <code>
+const fmt = s => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+
+const SECTIONS = [
+  { id: "A0", title: "Repaso de Python", kind: "mc", items: [
+    { id: "A0.1", q: "En Python, `PUERTO = 5050` crea:", o: ["una función", "una variable de tipo entero", "una librería", "un socket"], a: 1,
+      e: "Es una variable `int`; por convención del curso las constantes van en mayúsculas." },
+    { id: "A0.2", q: "`b\"hola\"` es un valor de tipo:", o: ["str", "int", "bytes", "bool"], a: 2,
+      e: "La `b` inicial indica bytes: lo único que viaja por la red." },
+    { id: "A0.3", q: "El ciclo `while True:` termina cuando:", o: ["llega a 10 vueltas", "se ejecuta un break", "se acaba la memoria", "nunca puede terminar"], a: 1,
+      e: "`while True` es infinito; solo un `break` (o cerrar el programa) lo detiene." },
+    { id: "A0.4", q: "`conexion, direccion = servidor.accept()` funciona porque `accept()` devuelve:", o: ["una lista", "un diccionario", "una tupla de dos elementos", "un bool"], a: 2,
+      e: "Devuelve una tupla `(socket_nuevo, direccion)` y se desempaca en dos variables." },
+    { id: "A0.5", q: "Un entorno virtual (venv) sirve para:", o: ["hacer Python más rápido", "aislar las librerías y versiones de cada proyecto", "conectarse a internet", "cifrar el código"], a: 1,
+      e: "Cada proyecto con sus librerías, sin interferir con otros." },
+  ]},
+  { id: "A", title: "Opción múltiple", kind: "mc", items: [
+    { id: "A1", q: "Un sistema distribuido se caracteriza porque sus componentes:", o: ["comparten la misma memoria RAM", "están en computadoras conectadas por red y se comunican solo por paso de mensajes", "corren en la misma máquina", "no necesitan protocolos"], a: 1,
+      e: "Es la definición de Coulouris: componentes en red comunicándose por mensajes." },
+    { id: "A2", q: "En el modelo cliente-servidor:", o: ["el servidor inicia la comunicación", "el cliente inicia y el servidor espera en una dirección conocida", "ambos inician al mismo tiempo", "no hay direcciones conocidas"], a: 1,
+      e: "Servidor pasivo y conocido; cliente activo." },
+    { id: "A3", q: "¿Cuántos valores distintos puede representar un valor de 8 bits (un byte)?", o: ["8", "127", "256", "1024"], a: 2,
+      e: "2⁸ = 256 valores (0 a 255)." },
+    { id: "A4", q: "El número ASCII 10 corresponde a:", o: ["el espacio", "la letra A", "el salto de línea (\\n)", "el dígito 0"], a: 2,
+      e: "El byte 10 es el salto de línea (line feed); por eso `\\n` baja una línea." },
+    { id: "A5", q: "El puerto bien conocido de HTTPS es:", o: ["80", "22", "443", "53"], a: 2,
+      e: "443 (el 80 es HTTP sin cifrar)." },
+    { id: "A6", q: "La llamada `accept()` devuelve:", o: ["solo la dirección del cliente", "un socket nuevo para hablar con ese cliente y su dirección", "el número de clientes conectados", "el backlog disponible"], a: 1,
+      e: "Socket nuevo de conversación + tupla (IP, puerto) del cliente." },
+    { id: "A7", q: "Los tres mensajes del handshake TCP, en orden:", o: ["ACK, SYN, SYN-ACK", "SYN, SYN-ACK, ACK", "SYN, ACK, FIN", "HELLO, SYN, ACK"], a: 1,
+      e: "SYN, SYN-ACK, ACK." },
+    { id: "A8", q: "`recv(1024)` significa:", o: ["recibe exactamente 1024 bytes", "recibe exactamente un mensaje", "recibe HASTA 1024 bytes de lo que haya llegado", "recibe 1024 mensajes"], a: 2,
+      e: "\"Hasta 1024 bytes\"; TCP no conoce mensajes." },
+    { id: "A9", q: "En UDP, la dirección del remitente se obtiene con:", o: ["accept()", "connect()", "recvfrom()", "bind()"], a: 2,
+      e: "`recvfrom()` devuelve (datos, dirección); UDP no tiene `accept()`." },
+    { id: "A10", q: "Para enviar un ARCHIVO de 3 MB de forma confiable, el transporte adecuado es:", o: ["UDP, porque es más rápido", "TCP, porque garantiza entrega y orden", "da igual", "ninguno, los archivos no viajan por red"], a: 1,
+      e: "Un archivo debe llegar completo y en orden: TCP." },
+    { id: "A11", q: "Para video EN TIEMPO REAL, el transporte adecuado es:", o: ["TCP, porque retransmite los cuadros perdidos", "UDP, porque un cuadro perdido retransmitido llegaría tarde", "da igual", "Telnet"], a: 1,
+      e: "En tiempo real un cuadro retrasado no sirve: UDP." },
+    { id: "A12", q: "El propósito principal de RPC es:", o: ["cifrar mensajes", "hacer la red más rápida", "transparencia de acceso: llamar lo remoto como si fuera local", "eliminar el sistema operativo"], a: 2,
+      e: "RPC busca que lo remoto se sienta local." },
+  ]},
+  { id: "B", title: "Verdadero o falso", kind: "vf", hint: "Elige V o F. Antes de contestar, escribe tu justificación si quieres practicarla; después verás la del maestro.", items: [
+    { id: "B1", q: "En un sistema distribuido, una parte puede fallar mientras las demás siguen funcionando; tu programa debe contemplarlo.", a: true,
+      e: "Es el \"fallo parcial\", rasgo definitorio de los sistemas distribuidos." },
+    { id: "B2", q: "La memoria compartida es el modelo natural para comunicar máquinas distintas por red.", a: false,
+      e: "La memoria compartida exige misma máquina; en red el modelo es paso de mensajes." },
+    { id: "B3", q: "1 KB equivale a 1000 bytes exactamente.", a: false,
+      e: "1 KB = 1024 bytes (potencias de 2)." },
+    { id: "B4", q: "El carácter ñ ocupa exactamente 1 byte en UTF-8.", a: false,
+      e: "En UTF-8, ñ ocupa 2 bytes; solo los 128 caracteres ASCII ocupan 1." },
+    { id: "B5", q: "El socket que devuelve `accept()` es el mismo que hizo `listen()`.", a: false,
+      e: "`accept()` devuelve un socket NUEVO; el de escucha sigue solo aceptando." },
+    { id: "B6", q: "TCP garantiza que cada `send()` corresponde a exactamente un `recv()`.", a: false,
+      e: "TCP es un flujo de bytes: los mensajes pueden llegar pegados o partidos (de ahí el framing)." },
+    { id: "B7", q: "Si un datagrama UDP se pierde, el protocolo lo retransmite automáticamente.", a: false,
+      e: "UDP es best-effort: sin retransmisión ni aviso." },
+    { id: "B8", q: "UDP es ideal para aplicaciones que no pueden permitir la pérdida de datos.", a: false,
+      e: "Al revés: UDP es para aplicaciones que TOLERAN pérdida; TCP garantiza entrega." },
+  ]},
+  { id: "C", title: "Relacionar columnas", kind: "match", hint: "Asigna a cada llamada la letra de su descripción y pulsa Revisar.",
+    calls: ["socket()", "bind()", "listen()", "accept()", "connect()", "recvfrom()", "sendto()", "close()"],
+    descs: [
+      ["a", "Asocia el socket a una dirección y puerto locales"],
+      ["b", "Inicia la conexión hacia el servidor (dispara el handshake)"],
+      ["c", "Crea el punto final de comunicación"],
+      ["d", "Envía un datagrama indicando el destinatario cada vez"],
+      ["e", "Pone el socket en modo escucha"],
+      ["f", "Cierra el punto final de comunicación"],
+      ["g", "Recibe un datagrama y la dirección de quien lo envió"],
+      ["h", "Acepta una conexión y devuelve un socket nuevo + dirección"],
+    ],
+    key: ["c", "a", "e", "h", "b", "g", "d", "f"] },
+  { id: "D", title: "Respuesta corta", kind: "open", hint: "Escribe tu respuesta, revela la respuesta modelo y califícate: correcta (1), parcial (0.5) o incorrecta (0).", items: [
+    { id: "D1", q: "Define con tus palabras \"sistema distribuido\" y menciona DOS problemas que no existen en una sola máquina.",
+      m: "Componentes en computadoras conectadas por red que se comunican por paso de mensajes y aparecen ante el usuario como un solo sistema. Problemas nuevos: latencia, fallos parciales, pérdida/desorden de mensajes, concurrencia, heterogeneidad (dos cualesquiera)." },
+    { id: "D2", q: "Explica la regla de oro \"ENVIAR = ENCODE · RECIBIR = DECODE\" y qué error aparece si se olvida cada mitad.",
+      m: "Los sockets solo transportan bytes; el texto se convierte a bytes al enviar (`encode(\"utf-8\")`) y se reconstruye al recibir (`decode(\"utf-8\")`). Olvidar el encode: `TypeError`; olvidar el decode: se imprime `b'hola'`." },
+    { id: "D3", q: "¿Por qué el servidor necesita `bind()` y el cliente no? ¿Qué hace el sistema operativo por el cliente?",
+      m: "El servidor necesita una dirección conocida y fija para que lo encuentren: eso hace `bind()`. Al cliente nadie lo busca: al hacer `connect()`, el sistema operativo le asigna un puerto efímero automático." },
+    { id: "D4", q: "Explica el problema del framing y describe DOS soluciones.",
+      m: "TCP entrega un flujo de bytes sin fronteras: un `recv()` puede traer un mensaje partido o varios pegados. Soluciones: (1) delimitador (`\"\\n\"`, el byte 10) acumulando hasta encontrarlo; (2) prefijo de longitud (enviar primero cuántos bytes vienen); ambas con ciclo de recepción." },
+    { id: "D5", q: "¿Qué son stub y skeleton en RPC, en qué máquina va cada uno, y qué es marshalling?",
+      m: "Stub: representante local de la función remota (máquina CLIENTE): empaqueta, envía, devuelve. Skeleton: lado SERVIDOR: desempaqueta, ejecuta la función real, empaqueta el resultado. Marshalling: convertir los datos a un formato transmisible por la red." },
+  ]},
+  { id: "E", title: "Lectura de código", kind: "open", hint: "Lee el código, escribe tu respuesta y compárala con la respuesta modelo.", items: [
+    { id: "E1", q: "¿Qué imprime exactamente este programa cuando un cliente se conecta y envía \"hola\"?",
+      code: `import socket
+servidor = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+servidor.bind(("localhost", 5050))
+servidor.listen(1)
+conexion, direccion = servidor.accept()
+datos = conexion.recv(1024)
+print("Me llego:", datos)
+print("Tipo:", type(datos))`,
+      m: "Imprime `Me llego: b'hola'` y `Tipo: <class 'bytes'>`. La b delata que `recv()` devuelve BYTES; faltó `datos.decode(\"utf-8\")`." },
+    { id: "E2", q: "Este código UDP tiene UN error conceptual. Encuéntralo y corrígelo:",
+      code: `import socket
+servidor = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+servidor.bind(("0.0.0.0", 5050))
+servidor.listen(1)                      # linea con problema
+datos, direccion = servidor.recvfrom(1024)`, flag: 3,
+      m: "`listen()` no existe en UDP: no hay conexiones que escuchar. Se elimina; el servidor UDP correcto es socket → bind → recvfrom/sendto → close." },
+    { id: "E3", q: "¿Cuál es el error de este cliente TCP?",
+      code: `cliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+cliente.connect(("localhost", 5050))
+cliente.send("hola servidor")`,
+      m: "`send()` con texto sin codificar: debe ser `cliente.send(\"hola servidor\".encode(\"utf-8\"))`. Tal como está, lanza `TypeError: a bytes-like object is required`." },
+  ]},
+  { id: "F", title: "Ejercicios prácticos", kind: "practice", hint: "Se hacen en tu computadora con dos terminales (servidor primero, luego cliente). No suman puntos aquí; márcalos al terminarlos y consulta la orientación.", items: [
+    { id: "F1", q: "Ciclos de vida (Códigos 1 y 2). Ejecuta el eco TCP. En una copia del código, subraya: (a) la línea donde el servidor se bloquea esperando cliente; (b) la línea donde se bloquea esperando datos; (c) la línea del cliente que dispara el handshake.",
+      m: "(a) `conexion, direccion = servidor.accept()`; (b) `datos = conexion.recv(1024)`; (c) `cliente.connect((IP_SERVIDOR, PUERTO))`." },
+    { id: "F2", q: "Ciclo while True + funciones (Código 1). Modifica el servidor de eco: agrega un contador y una función `armar_eco(mensaje, numero)` que devuelva `ECO #N> mensaje`. Prueba con tres mensajes.",
+      m: "`contador = 0` antes del while; dentro, `contador += 1` y usa la función:",
+      code: `def armar_eco(mensaje, numero):
+    return "ECO #" + str(numero) + "> " + mensaje` },
+    { id: "F3", q: "UDP y best-effort (Código 4). Ejecuta el experimento de pérdida (apagar el servidor a la mitad). Documenta con captura qué observó el cliente y explica en 3 líneas por qué no hubo ningún error de conexión.",
+      m: "El cliente imprime `... silencio: el datagrama se perdio y NADIE aviso ...` tras 3 s. No hay error porque UDP no confirma entregas: el datagrama se fue \"al vacío\" y solo el `settimeout` reveló el silencio." },
+    { id: "F4", q: "Framing (Código 5). Ejecuta el servidor y cliente de framing. Luego modifica el cliente para enviar TRES mensajes en un solo `send()` y verifica que el servidor los separa. ¿Qué línea del servidor es la que \"sabe\" dónde termina cada mensaje?",
+      m: "La línea es `while \"\\n\" in buffer:` (junto con el `split(\"\\n\", 1)`): el delimitador marca dónde termina cada mensaje." },
+    { id: "F5", q: "Bloqueo (Código 3). Cambia `ESPERA` a 7 segundos, ejecuta y anota el tiempo que midió el servidor. Después agrega `conexion.settimeout(5)` justo después de `accept()` y vuelve a correr: ¿qué excepción ocurre y en qué lado?",
+      m: "El servidor mide ≈ 7 s. Con `settimeout(5)`, a los 5 s salta la excepción `socket.timeout` en el servidor (el lado que espera); se captura con `try/except socket.timeout`." },
+    { id: "F6", q: "Código limpio. Reescribe este código cumpliendo TODAS las normas de código limpio (constantes, nombres, comentarios que explican el porqué):",
+      qcode: `s=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+s.bind(('',9000))
+s.listen(1)
+c,a=s.accept()
+d=c.recv(1024)
+print(d)`,
+      m: "Solución modelo:",
+      code: `PUERTO = 9000
+
+servidor = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+servidor.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+servidor.bind(("localhost", PUERTO))
+servidor.listen(1)
+
+# accept() devuelve un socket NUEVO para hablar con este cliente
+conexion, direccion = servidor.accept()
+datos = conexion.recv(1024)
+print("Me llego:", datos.decode())` },
+  ]},
+];
+
+const STORE = "examen-sockets-v1";
+let state = load();
+function blank() { return { ans: {}, self: {}, open: {}, text: {}, match: {}, matchChecked: false, done: {} }; }
+function load() {
+  try { const s = JSON.parse(localStorage.getItem(STORE)); if (s && s.ans) return Object.assign(blank(), s); } catch (e) {}
+  return blank();
+}
+function save() { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {} }
+
+function codeBlock(src, flagLine) {
+  const lines = src.split("\n").map((l, i) => i === flagLine ? `<span class="flag">${esc(l)}</span>` : esc(l));
+  return `<pre><code>${lines.join("\n")}</code></pre>`;
+}
+
+function sectionMax(s) {
+  if (s.kind === "match") return s.calls.length;
+  if (s.kind === "practice") return 0;
+  return s.items.length;
+}
+function sectionScore(s) {
+  let pts = 0, done = 0;
+  if (s.kind === "mc" || s.kind === "vf") {
+    s.items.forEach(it => { if (it.id in state.ans) { done++; if (state.ans[it.id] === it.a) pts++; } });
+  } else if (s.kind === "match") {
+    if (state.matchChecked) s.calls.forEach((c, i) => { done++; if (state.match[i] === s.key[i]) pts++; });
+  } else if (s.kind === "open") {
+    s.items.forEach(it => { if (it.id in state.self) { done++; pts += state.self[it.id]; } });
+  } else if (s.kind === "practice") {
+    s.items.forEach(it => { if (state.done[it.id]) done++; });
+  }
+  return { pts, done, total: s.kind === "practice" ? s.items.length : sectionMax(s) };
+}
+
+function render() {
+  const main = document.getElementById("exam");
+  main.innerHTML = SECTIONS.map(renderSection).join("");
+  document.getElementById("jump").innerHTML =
+    SECTIONS.map(s => `<a href="#sec-${s.id}" data-sec="${s.id}">${s.id}</a>`).join("") + `<a href="#resultado">Resultado</a>`;
+  updateScore();
+}
+
+function renderSection(s) {
+  const max = sectionMax(s);
+  let body = "";
+  if (s.kind === "mc") body = s.items.map(renderMC).join("");
+  else if (s.kind === "vf") body = s.items.map(renderVF).join("");
+  else if (s.kind === "match") body = renderMatch(s);
+  else if (s.kind === "open") body = s.items.map(renderOpen).join("");
+  else body = s.items.map(renderPractice).join("");
+  return `<section class="sec" id="sec-${s.id}">
+    <div class="sec-head"><span class="tag">${s.id}</span><h2>${s.title}</h2>
+      <span class="pts" id="pts-${s.id}">${max ? "" : "sin puntaje"}</span></div>
+    ${s.hint ? `<p class="hint">${fmt(s.hint)}</p>` : ""}
+    ${body}
+  </section>`;
+}
+
+function qHead(it, extra) {
+  return `<div class="q-title"><span class="q-id">${it.id}</span><div class="q-text">${fmt(it.q)}${extra || ""}</div></div>`;
+}
+
+function renderMC(it) {
+  const chosen = state.ans[it.id];
+  const answered = chosen !== undefined;
+  const opts = it.o.map((o, i) => {
+    let cls = "opt";
+    if (answered) cls += i === it.a ? " right" : i === chosen ? " wrong" : " dim";
+    return `<button type="button" class="${cls}" data-mc="${it.id}" data-i="${i}" ${answered ? "disabled" : ""}><span class="l">${"abcd"[i]})</span><span>${fmt(o)}</span></button>`;
+  }).join("");
+  return `<div class="q">${qHead(it)}<div class="opts">${opts}</div>${answered ? feedback(chosen === it.a, it.e, "abcd"[it.a]) : ""}</div>`;
+}
+
+function renderVF(it) {
+  const chosen = state.ans[it.id];
+  const answered = chosen !== undefined;
+  const opts = [true, false].map(v => {
+    let cls = "opt";
+    if (answered) cls += v === it.a ? " right" : v === chosen ? " wrong" : " dim";
+    return `<button type="button" class="${cls}" data-vf="${it.id}" data-v="${v}" ${answered ? "disabled" : ""}><span class="l">${v ? "V" : "F"}</span><span>${v ? "Verdadero" : "Falso"}</span></button>`;
+  }).join("");
+  const just = `<textarea id="just-${it.id}" data-text="${it.id}" placeholder="Tu justificación (opcional)" style="min-height:52px;margin-top:10px">${esc(state.text[it.id] || "")}</textarea>`;
+  return `<div class="q">${qHead(it)}<div class="opts vf">${opts}</div>${just}${answered ? feedback(chosen === it.a, it.e, it.a ? "Verdadero" : "Falso") : ""}</div>`;
+}
+
+function feedback(ok, e, correct) {
+  return ok
+    ? `<div class="fb ok"><strong>Correcto.</strong> ${fmt(e)}</div>`
+    : `<div class="fb bad"><strong>Incorrecto. Respuesta: ${esc(correct)}.</strong> ${fmt(e)}</div>`;
+}
+
+function renderMatch(s) {
+  const checked = state.matchChecked;
+  const rows = s.calls.map((c, i) => {
+    const v = state.match[i] || "";
+    let cls = "mrow", fix = "";
+    if (checked) { if (v === s.key[i]) cls += " right"; else { cls += " wrong"; fix = `<span class="fix">→ ${s.key[i]}</span>`; } }
+    const sel = `<select id="match-${i}" data-match="${i}" ${checked ? "disabled" : ""} aria-label="Letra para ${c}">
+      <option value="">–</option>${s.descs.map(d => `<option value="${d[0]}" ${v === d[0] ? "selected" : ""}>${d[0]}</option>`).join("")}</select>`;
+    return `<div class="${cls}"><span class="q-id">${i + 1}.</span><code>${c}</code>${sel}${fix}</div>`;
+  }).join("");
+  const descs = s.descs.map(d => `<li><span class="l">${d[0]}.</span><span>${esc(d[1])}</span></li>`).join("");
+  const btn = checked
+    ? `<button type="button" class="btn" id="matchRetry">Volver a intentar</button>`
+    : `<button type="button" class="btn primary" id="matchCheck">Revisar relación</button>`;
+  return `<div class="q"><div class="match"><div class="match-calls">${rows}</div><ul class="match-desc">${descs}</ul></div>
+    <div class="row-btns">${btn}</div>
+    ${checked ? `<div class="fb model"><strong>Clave:</strong> ${s.calls.map((c, i) => `${i + 1} → ${s.key[i]}`).join(" · ")}</div>` : ""}</div>`;
+}
+
+function renderOpen(it) {
+  const shown = state.open[it.id];
+  const g = state.self[it.id];
+  const code = it.code ? codeBlock(it.code, it.flag) : "";
+  const selfBtns = [[1, "Correcta", "on-1"], [0.5, "Parcial", "on-05"], [0, "Incorrecta", "on-0"]]
+    .map(([v, t, c]) => `<button type="button" class="btn ${g === v ? c : ""}" data-self="${it.id}" data-v="${v}">${t}</button>`).join("");
+  return `<div class="q">${qHead(it, code)}
+    <textarea id="ans-${it.id}" data-text="${it.id}" placeholder="Escribe tu respuesta">${esc(state.text[it.id] || "")}</textarea>
+    <div class="row-btns"><button type="button" class="btn ${shown ? "" : "primary"}" data-reveal="${it.id}">${shown ? "Ocultar respuesta modelo" : "Ver respuesta modelo"}</button></div>
+    ${shown ? `<div class="fb model"><strong>Respuesta modelo.</strong> ${fmt(it.m)}</div>
+      <div class="self"><span>¿Cómo te fue?</span>${selfBtns}</div>` : ""}
+  </div>`;
+}
+
+function renderPractice(it) {
+  const shown = state.open[it.id];
+  const qcode = it.qcode ? codeBlock(it.qcode) : "";
+  return `<div class="q">${qHead(it, qcode)}
+    <label class="check"><input type="checkbox" id="done-${it.id}" data-done="${it.id}" ${state.done[it.id] ? "checked" : ""}> Lo hice y verifiqué la salida</label>
+    <div class="row-btns"><button type="button" class="btn" data-reveal="${it.id}">${shown ? "Ocultar orientación" : "Ver orientación"}</button></div>
+    ${shown ? `<div class="fb model"><strong>Orientación.</strong> ${fmt(it.m)}${it.code ? codeBlock(it.code) : ""}</div>` : ""}
+  </div>`;
+}
+
+function updateScore() {
+  let pts = 0, max = 0, done = 0;
+  const rows = [];
+  const labels = { mc: "Opción múltiple", vf: "V / F", match: "Relacionar", open: "Autoevaluada", practice: "Práctica" };
+  SECTIONS.forEach(s => {
+    const r = sectionScore(s);
+    const smax = sectionMax(s);
+    const el = document.getElementById("pts-" + s.id);
+    const link = document.querySelector(`#jump a[data-sec="${s.id}"]`);
+    if (smax) {
+      pts += r.pts; max += smax; done += r.done;
+      if (el) el.textContent = `${fmtN(r.pts)} / ${smax}`;
+      rows.push(`<tr><td>${s.id} · ${s.title}</td><td>${labels[s.kind]}</td><td>${fmtN(r.pts)} / ${smax}</td></tr>`);
+    } else {
+      if (el) el.textContent = `${r.done} / ${r.total} hechos`;
+      rows.push(`<tr><td>${s.id} · ${s.title}</td><td>${labels[s.kind]}</td><td>${r.done} / ${r.total} hechos</td></tr>`);
+    }
+    if (link) link.classList.toggle("done", r.done === r.total);
+  });
+  const grade = max ? (pts / max * 10) : 0;
+  document.getElementById("sPts").textContent = fmtN(pts);
+  document.getElementById("sMax").textContent = max;
+  document.getElementById("sAns").textContent = done;
+  document.getElementById("sTot").textContent = max;
+  document.getElementById("sGrade").textContent = grade.toFixed(1);
+  document.getElementById("meter").style.width = (done / max * 100) + "%";
+  document.getElementById("rGrade").textContent = grade.toFixed(1);
+  document.getElementById("rPts").textContent = fmtN(pts);
+  document.getElementById("rPend").textContent = max - done;
+  document.getElementById("rBody").innerHTML = rows.join("");
+}
+const fmtN = n => Number.isInteger(n) ? String(n) : n.toFixed(1);
+
+// rerender una sección conservando la posición de scroll
+function rerender(secId) {
+  const s = SECTIONS.find(x => x.id === secId);
+  const old = document.getElementById("sec-" + secId);
+  const tmp = document.createElement("div");
+  tmp.innerHTML = renderSection(s);
+  old.replaceWith(tmp.firstElementChild);
+  updateScore();
+}
+const secOf = id => SECTIONS.find(s => (s.items || []).some(it => it.id === id)).id;
+
+document.addEventListener("click", e => {
+  const t = e.target.closest("button");
+  if (!t) return;
+  if (t.dataset.mc) { state.ans[t.dataset.mc] = +t.dataset.i; save(); rerender(secOf(t.dataset.mc)); return; }
+  if (t.dataset.vf) { state.ans[t.dataset.vf] = t.dataset.v === "true"; save(); rerender(secOf(t.dataset.vf)); return; }
+  if (t.dataset.reveal) { const id = t.dataset.reveal; state.open[id] = !state.open[id]; save(); rerender(secOf(id)); return; }
+  if (t.dataset.self) { state.self[t.dataset.self] = +t.dataset.v; save(); rerender(secOf(t.dataset.self)); return; }
+  if (t.id === "matchCheck") { state.matchChecked = true; save(); rerender("C"); return; }
+  if (t.id === "matchRetry") { state.matchChecked = false; state.match = {}; save(); rerender("C"); return; }
+  if (t.id === "resetBtn") { document.getElementById("confirmBox").hidden = false; t.hidden = true; return; }
+  if (t.id === "resetNo") { document.getElementById("confirmBox").hidden = true; document.getElementById("resetBtn").hidden = false; return; }
+  if (t.id === "resetYes") {
+    state = blank(); save();
+    document.getElementById("confirmBox").hidden = true; document.getElementById("resetBtn").hidden = false;
+    render(); window.scrollTo(0, 0); return;
+  }
+});
+document.addEventListener("input", e => {
+  const t = e.target;
+  if (t.dataset.text) { state.text[t.dataset.text] = t.value; save(); }
+});
+document.addEventListener("change", e => {
+  const t = e.target;
+  if (t.dataset.match !== undefined) { state.match[t.dataset.match] = t.value; save(); }
+  if (t.dataset.done) { state.done[t.dataset.done] = t.checked; save(); updateScore(); }
+});
+
+render();
+</script>

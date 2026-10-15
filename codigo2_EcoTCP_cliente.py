@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import socket
 
-IP_SERVIDOR = "localhost"
+IP_SERVIDOR = "127.0.0.1"
 PUERTO = 5050
 
 cliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
