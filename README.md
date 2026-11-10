@@ -1,15 +1,24 @@
 # Programación en Red
 
 Repositorio de actividades, ejercicios y proyectos del curso **Programación en
-Red** de la Universidad Veracruzana (Unidad II). El material practica
+Red** de la Universidad Veracruzana (Unidades II a IV). El material practica
 comunicación cliente-servidor con sockets **TCP y UDP**, bloqueo, framing,
-concurrencia con hilos, manejo de errores y protocolos sencillos de aplicación.
+concurrencia con hilos, manejo de errores, llamadas a procedimiento remoto
+(**XML-RPC**) y servicios web sobre **HTTP y HTTPS**.
 
 ## Requisitos
 
 - Python 3.x
-- No se requieren dependencias externas: los programas usan principalmente
-  módulos de la biblioteca estándar (`socket`, `threading` y `time`).
+- Casi todos los programas usan solo la biblioteca estándar (`socket`,
+  `threading`, `time`, `xmlrpc`, `http.server`, `ssl`, `json`).
+- Los clientes de las prácticas 8 y 9 usan `requests`:
+
+  ```powershell
+  pip install requests
+  ```
+
+- Para la Práctica 9 se necesita **OpenSSL** (para generar la llave y el
+  certificado) y, opcionalmente, `curl`.
 - Para ejecutar una comunicación cliente-servidor, inicia primero el servidor
   y después el cliente en otra terminal. Si se usan equipos distintos, cambia
   la dirección IP configurada o solicitada por el programa.
@@ -52,7 +61,8 @@ Sistema de turnos **LA FILA** con dos protocolos y ejecución concurrente:
   `TURNO>apodo\n`.
 - `cliente_consulta_udp.py`: consulta el total enviando `CUANTOS` y recibe
   `van>N\n`.
-- `Guia_Concurrencia_Hilos_TCP_y_UDP.pdf`: guía de la actividad.
+- `Guia_Concurrencia_Hilos_TCP_y_UDP.pdf`: guía de la actividad (solo en la
+  copia local; está excluida en `.gitignore`).
 
 Ejemplo de ejecución desde la carpeta `Actividad 6`:
 
@@ -82,7 +92,7 @@ Serie de ejercicios centrados en robustez:
    `errores_servidor.log`.
 
 La guía de esta sección se encuentra en
-`Guia_Manejo_Errores_Excepciones_y_Ejercicios.pdf`.
+`Guia_Manejo_Errores_Excepciones_y_Ejercicios.pdf` (no se versiona en Git).
 
 ### `Examen_y_Ejercicios_Repaso/`
 
@@ -96,6 +106,29 @@ Material de repaso y soluciones/prácticas del examen:
 - `Examen/P4/`: implementación de **LA FILA** con
   `P4_Servidor.py`, `P4_cliente_tcp.py` y `P4_cliente_udp.py`, junto con las
   capturas de cliente TCP, cliente UDP y servidor.
+
+### `La-Fila-RPC/`
+
+Ejercicio 7: el sistema **LA FILA** reescrito con **XML-RPC**, sin sockets ni
+framing a la vista:
+
+- `la_fila_rpc_servidor.py`: `SimpleXMLRPCServer` con `ThreadingMixIn` (un
+  hilo por petición) en el puerto `5000`; expone `tomar_turno(apodo)` y
+  `cuantos_van()` y protege el contador con `threading.Lock()`. El servicio UDP
+  de `CUANTOS` ya no es necesario.
+- `la_fila_rpc_cliente.py`: usa `xmlrpc.client.ServerProxy` como *stub*, pide
+  un turno, consulta el total y provoca un `Fault` llamando a una función
+  inexistente; maneja servidor apagado, host inválido y *timeouts*.
+
+### `Practica7.md`
+
+Reporte de la Práctica 7 (Unidad IV) sobre tráfico HTTP real:
+
+- Parte 1: captura de peticiones reales (versión, método, línea de estado,
+  `User-Agent`, `Server`, `Content-Type`) y preguntas sobre `Host` y texto
+  plano.
+- Parte 2: provocar códigos `200`, `404` y `500` con `curl`, probar `POST` y
+  `HEAD`, y escribir la petición literal con `netcat`.
 
 ### `Practica8_ServidorHTTP_CRUD/`
 
@@ -112,13 +145,17 @@ bitácora de incidencias guardada en `incidencias.json`:
 
 HTTPS con un certificado autofirmado generado con OpenSSL:
 
-- `servidor_https.py`: servidor de archivos sobre TLS en `https://localhost:8443`.
+- `servidor_https.py`: servidor de archivos sobre TLS en `https://localhost:8443`
+  (sirve `index.html`).
 - `servidor_bitacora.py` / `cliente_bitacora.py`: la bitácora de la Práctica 8
   servida por HTTPS (solo cambia el arranque) y consumida con
   `verify="certificado.pem"`.
+- `certificado.pem`: certificado público autofirmado.
+- `evidencias/`: salidas de `openssl x509`, `openssl s_client`, `curl` y del
+  cliente Python.
 - `README.md`: reporte con el certificado, la reflexión, las pruebas con
   `curl`/`requests` y el comando para generar `llave.pem`, que **no** se sube
-  a Git.
+  a Git (`llave.pem`, `*.key` e `incidencias.json` están en `.gitignore`).
 
 ## Protocolos destacados
 
@@ -129,6 +166,7 @@ HTTPS con un certificado autofirmado generado con OpenSSL:
 | Batalla naval | TCP o UDP | `5050` | Coordenada → `TOCADO`/`AGUA` |
 | LA FILA | TCP | `5000` | `TURNO>apodo\n` → `turno>N\n` |
 | LA FILA | UDP | `5001` | `CUANTOS` → `van>N\n` |
+| LA FILA (RPC) | XML-RPC sobre HTTP | `5000` | `tomar_turno(apodo)`, `cuantos_van()` |
 | Bitácora de incidencias | HTTP | `8001` | `GET`/`POST`/`PATCH`/`PUT`/`DELETE /incidencias` (JSON) |
 | Bitácora de incidencias | HTTPS (TLS 1.3) | `8443` | Mismas rutas, cifradas |
 
@@ -149,4 +187,4 @@ referencia y no forman un paquete instalable.
 
 ---
 
-**Última actualización:** 15 de octubre de 2026
+**Última actualización:** 10 de noviembre de 2026
