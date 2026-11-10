@@ -97,6 +97,29 @@ Material de repaso y soluciones/prácticas del examen:
   `P4_Servidor.py`, `P4_cliente_tcp.py` y `P4_cliente_udp.py`, junto con las
   capturas de cliente TCP, cliente UDP y servidor.
 
+### `Practica8_ServidorHTTP_CRUD/`
+
+Servidor HTTP con `http.server` (puerto `8001`) que implementa un CRUD de una
+bitácora de incidencias guardada en `incidencias.json`:
+
+- `servidor_bitacora.py`: rutas `GET`/`POST`/`PATCH`/`PUT`/`DELETE` sobre
+  `/incidencias`, filtros `?tipo=` y `?estado=`, y auditoría en `/logs` y
+  `/contadores`.
+- `cliente_bitacora.py`: cliente con `requests` que recorre el ciclo completo.
+- `README.md`: reporte de la práctica con las respuestas a los ejercicios.
+
+### `Practica9_HTTPS_OpenSSL/`
+
+HTTPS con un certificado autofirmado generado con OpenSSL:
+
+- `servidor_https.py`: servidor de archivos sobre TLS en `https://localhost:8443`.
+- `servidor_bitacora.py` / `cliente_bitacora.py`: la bitácora de la Práctica 8
+  servida por HTTPS (solo cambia el arranque) y consumida con
+  `verify="certificado.pem"`.
+- `README.md`: reporte con el certificado, la reflexión, las pruebas con
+  `curl`/`requests` y el comando para generar `llave.pem`, que **no** se sube
+  a Git.
+
 ## Protocolos destacados
 
 | Sistema | Transporte | Puerto | Mensajes principales |
@@ -106,6 +129,8 @@ Material de repaso y soluciones/prácticas del examen:
 | Batalla naval | TCP o UDP | `5050` | Coordenada → `TOCADO`/`AGUA` |
 | LA FILA | TCP | `5000` | `TURNO>apodo\n` → `turno>N\n` |
 | LA FILA | UDP | `5001` | `CUANTOS` → `van>N\n` |
+| Bitácora de incidencias | HTTP | `8001` | `GET`/`POST`/`PATCH`/`PUT`/`DELETE /incidencias` (JSON) |
+| Bitácora de incidencias | HTTPS (TLS 1.3) | `8443` | Mismas rutas, cifradas |
 
 Los puertos y hosts pueden variar entre ejercicios; consulta las constantes al
 inicio de cada archivo antes de conectar clientes y servidores.
