@@ -1,0 +1,49 @@
+$ curl -sS --cacert certificado.pem https://localhost:8443/incidencias
+[]
+(c贸digo de salida: 0)
+
+$ curl -sS --cacert certificado.pem -H Content-Type: application/json -d {"tipo":"alerta","descripcion":"Prueba sobre HTTPS"} https://localhost:8443/incidencias
+{"id": 1, "tipo": "alerta", "descripcion": "Prueba sobre HTTPS", "estado": "abierta", "hora": "2026-11-06 16:07:31"}
+(c贸digo de salida: 0)
+
+$ curl -sS --cacert certificado.pem https://localhost:8443/incidencias
+[{"id": 1, "tipo": "alerta", "descripcion": "Prueba sobre HTTPS", "estado": "abierta", "hora": "2026-11-06 16:07:31"}]
+(c贸digo de salida: 0)
+
+$ curl -sS https://localhost:8443/incidencias
+curl: (60) schannel: SEC_E_UNTRUSTED_ROOT (0x80090325) - La cadena de certificaci髇 fue emitida por una entidad en la que no se conf韆.
+More details here: https://curl.se/docs/sslcerts.html
+
+curl failed to verify the legitimacy of the server and therefore could not
+establish a secure connection to it. To learn more about this situation and
+how to fix it, please visit the webpage mentioned above.
+
+(c贸digo de salida: 60)
+
+$ curl -sS -k https://localhost:8443/incidencias
+[{"id": 1, "tipo": "alerta", "descripcion": "Prueba sobre HTTPS", "estado": "abierta", "hora": "2026-11-06 16:07:31"}]
+(c贸digo de salida: 0)
+
+$ curl -sS http://localhost:8443/incidencias
+curl: (56) Recv failure: Connection was reset
+
+(c贸digo de salida: 56)
+
+$ curl -v --cacert certificado.pem https://localhost:8443/contadores   (extracto del handshake)
+* schannel: disabled automatic use of client certificate
+* ALPN: curl offers http/1.1
+* schannel: added 1 certificate(s) from CA file 'certificado.pem'
+* schannel: connection hostname (localhost) validated against certificate name (localhost)
+* ALPN: server did not agree on a protocol. Uses default.
+* Established connection to localhost (127.0.0.1 port 8443) from 127.0.0.1 port 63910 
+* schannel: remote party requests renegotiation
+* schannel: renegotiating SSL/TLS connection
+* schannel: reusing certificate store from cache
+* schannel: connection hostname (localhost) validated against certificate name (localhost)
+* schannel: SSL/TLS connection renegotiated
+* schannel: remote party requests renegotiation
+* schannel: renegotiating SSL/TLS connection
+* schannel: reusing certificate store from cache
+* schannel: connection hostname (localhost) validated against certificate name (localhost)
+* schannel: SSL/TLS connection renegotiated
+< HTTP/1.0 200 OK

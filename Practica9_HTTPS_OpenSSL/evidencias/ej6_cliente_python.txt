@@ -1,0 +1,296 @@
+
+--- POST crear alerta ---
+POST https://localhost:8443/incidencias -> 201
+{
+  "id": 2,
+  "tipo": "alerta",
+  "descripcion": "Escaneo de puertos",
+  "estado": "abierta",
+  "hora": "2026-11-06 16:08:06"
+}
+
+--- POST crear vulnerabilidad en_proceso ---
+POST https://localhost:8443/incidencias -> 201
+{
+  "id": 3,
+  "tipo": "vulnerabilidad",
+  "descripcion": "SSH con contrasena debil",
+  "estado": "en_proceso",
+  "hora": "2026-11-06 16:08:08"
+}
+
+--- GET todas ---
+GET https://localhost:8443/incidencias -> 200
+[
+  {
+    "id": 1,
+    "tipo": "alerta",
+    "descripcion": "Prueba sobre HTTPS",
+    "estado": "abierta",
+    "hora": "2026-11-06 16:07:31"
+  },
+  {
+    "id": 2,
+    "tipo": "alerta",
+    "descripcion": "Escaneo de puertos",
+    "estado": "abierta",
+    "hora": "2026-11-06 16:08:06"
+  },
+  {
+    "id": 3,
+    "tipo": "vulnerabilidad",
+    "descripcion": "SSH con contrasena debil",
+    "estado": "en_proceso",
+    "hora": "2026-11-06 16:08:08"
+  }
+]
+
+--- GET solo tipo=alerta ---
+GET https://localhost:8443/incidencias?tipo=alerta -> 200
+[
+  {
+    "id": 1,
+    "tipo": "alerta",
+    "descripcion": "Prueba sobre HTTPS",
+    "estado": "abierta",
+    "hora": "2026-11-06 16:07:31"
+  },
+  {
+    "id": 2,
+    "tipo": "alerta",
+    "descripcion": "Escaneo de puertos",
+    "estado": "abierta",
+    "hora": "2026-11-06 16:08:06"
+  }
+]
+
+GET https://localhost:8443/incidencias?estado=abierta -> 200, 2 resultado(s)
+
+GET https://localhost:8443/incidencias?estado=en_proceso -> 200, 1 resultado(s)
+
+GET https://localhost:8443/incidencias?tipo=alerta&estado=abierta -> 200, 2 resultado(s)
+
+GET https://localhost:8443/incidencias?tipo=alerta&estado=resuelta -> 200, 0 resultado(s)
+
+GET https://localhost:8443/incidencias?tipo=vulnerabilidad&estado=en_proceso -> 200, 1 resultado(s)
+
+--- PATCH estado=resuelta ---
+PATCH https://localhost:8443/incidencias/2 -> 200
+{
+  "id": 2,
+  "tipo": "alerta",
+  "descripcion": "Escaneo de puertos",
+  "estado": "resuelta",
+  "hora": "2026-11-06 16:08:06"
+}
+
+--- PATCH estado invalido (400) ---
+PATCH https://localhost:8443/incidencias/2 -> 400
+{
+  "error": "estado invalido: 'cerrada'; valores validos: abierta, en_proceso, resuelta"
+}
+
+--- POST estado invalido (400) ---
+POST https://localhost:8443/incidencias -> 400
+{
+  "error": "estado invalido: 'pendiente'; valores validos: abierta, en_proceso, resuelta"
+}
+
+--- PUT reemplazo completo ---
+PUT https://localhost:8443/incidencias/2 -> 200
+{
+  "id": 2,
+  "tipo": "incidente",
+  "descripcion": "Ransomware en equipo de caja",
+  "estado": "abierta",
+  "hora": "2026-11-06 16:08:31"
+}
+
+--- PUT sin descripcion (400) ---
+PUT https://localhost:8443/incidencias/2 -> 400
+{
+  "error": "faltan campos: descripcion"
+}
+
+--- DELETE (204) ---
+DELETE https://localhost:8443/incidencias/3 -> 204
+
+no existe: incidencia 999 no encontrada
+
+--- GET /contadores ---
+GET https://localhost:8443/contadores -> 200
+{
+  "peticiones_totales": 23,
+  "por_metodo": {
+    "GET": 13,
+    "POST": 4,
+    "PATCH": 2,
+    "PUT": 2,
+    "DELETE": 1,
+    "HEAD": 1
+  },
+  "por_familia": {
+    "2xx": 19,
+    "4xx": 4,
+    "5xx": 0
+  },
+  "incidencias_por_tipo": {
+    "alerta": 2,
+    "vulnerabilidad": 1,
+    "incidente": 0
+  }
+}
+
+--- GET /logs ---
+GET https://localhost:8443/logs -> 200
+[
+  {
+    "hora": "16:07:30",
+    "metodo": "GET",
+    "ruta": "/",
+    "codigo": 200
+  },
+  {
+    "hora": "16:07:31",
+    "metodo": "GET",
+    "ruta": "/incidencias",
+    "codigo": 200
+  },
+  {
+    "hora": "16:07:31",
+    "metodo": "POST",
+    "ruta": "/incidencias",
+    "codigo": 201
+  },
+  {
+    "hora": "16:07:31",
+    "metodo": "GET",
+    "ruta": "/incidencias",
+    "codigo": 200
+  },
+  {
+    "hora": "16:07:32",
+    "metodo": "GET",
+    "ruta": "/incidencias",
+    "codigo": 200
+  },
+  {
+    "hora": "16:07:33",
+    "metodo": "GET",
+    "ruta": "/contadores",
+    "codigo": 200
+  },
+  {
+    "hora": "16:08:04",
+    "metodo": "HEAD",
+    "ruta": "/",
+    "codigo": 200
+  },
+  {
+    "hora": "16:08:06",
+    "metodo": "POST",
+    "ruta": "/incidencias",
+    "codigo": 201
+  },
+  {
+    "hora": "16:08:08",
+    "metodo": "POST",
+    "ruta": "/incidencias",
+    "codigo": 201
+  },
+  {
+    "hora": "16:08:10",
+    "metodo": "GET",
+    "ruta": "/incidencias",
+    "codigo": 200
+  },
+  {
+    "hora": "16:08:12",
+    "metodo": "GET",
+    "ruta": "/incidencias?tipo=alerta",
+    "codigo": 200
+  },
+  {
+    "hora": "16:08:15",
+    "metodo": "GET",
+    "ruta": "/incidencias?estado=abierta",
+    "codigo": 200
+  },
+  {
+    "hora": "16:08:17",
+    "metodo": "GET",
+    "ruta": "/incidencias?estado=en_proceso",
+    "codigo": 200
+  },
+  {
+    "hora": "16:08:19",
+    "metodo": "GET",
+    "ruta": "/incidencias?tipo=alerta&estado=abierta",
+    "codigo": 200
+  },
+  {
+    "hora": "16:08:21",
+    "metodo": "GET",
+    "ruta": "/incidencias?tipo=alerta&estado=resuelta",
+    "codigo": 200
+  },
+  {
+    "hora": "16:08:23",
+    "metodo": "GET",
+    "ruta": "/incidencias?tipo=vulnerabilidad&estado=en_proceso",
+    "codigo": 200
+  },
+  {
+    "hora": "16:08:25",
+    "metodo": "PATCH",
+    "ruta": "/incidencias/2",
+    "codigo": 200
+  },
+  {
+    "hora": "16:08:27",
+    "metodo": "PATCH",
+    "ruta": "/incidencias/2",
+    "codigo": 400
+  },
+  {
+    "hora": "16:08:29",
+    "metodo": "POST",
+    "ruta": "/incidencias",
+    "codigo": 400
+  },
+  {
+    "hora": "16:08:31",
+    "metodo": "PUT",
+    "ruta": "/incidencias/2",
+    "codigo": 200
+  },
+  {
+    "hora": "16:08:33",
+    "metodo": "PUT",
+    "ruta": "/incidencias/2",
+    "codigo": 400
+  },
+  {
+    "hora": "16:08:35",
+    "metodo": "DELETE",
+    "ruta": "/incidencias/3",
+    "codigo": 204
+  },
+  {
+    "hora": "16:08:37",
+    "metodo": "GET",
+    "ruta": "/incidencias/999",
+    "codigo": 404
+  },
+  {
+    "hora": "16:08:40",
+    "metodo": "GET",
+    "ruta": "/contadores",
+    "codigo": 200
+  }
+]
+
+--- Verificacion del certificado ---
+verify='certificado.pem'  -> 200 (correcto: se valida la identidad)
+verify=True (CA del sistema) -> SSLError: nadie reconocido firmo el certificado
+verify=False -> 200, avisos: ['InsecureRequestWarning']  (mala practica)

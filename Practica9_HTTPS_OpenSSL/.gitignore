@@ -1,0 +1,4 @@
+llave.pem
+*.key
+__pycache__/
+incidencias.json
